@@ -37,9 +37,26 @@ fires[,c(2,3,4,5,7,11,12)] <- lapply(fires[,c(2,3,4,5,7,11,12)], as.factor)
 #Converting datetime string into season and time of day
 ```{r}
 # Get a POSIXct datetime object from the string in the dataset
-fires$date <- as.POSIXct(fires$AlarmDateTimeAmericaNY , format="%Y/%m/%d %H:%M:%S+00", tz="EST")
+fires$AlarmDateTimeAmericaNY <- as.POSIXct(fires$AlarmDateTimeAmericaNY , format="%Y/%m/%d %H:%M:%S+00", tz="EST")
 
-# Extract the date from the POSIXct object, convert it to a fac
-fires$month <- format(as.Date(fires$date), "%m")
-fires$month <- as.factor(fires$month)
+# Extract the date from the POSIXct object, convert it to a factor and collapse the factor into seasons
+fires$season <- format(as.Date(fires$AlarmDateTimeAmericaNY), "%m")
+fires$season <- as.factor(fires$season)
+fires$season <- fct_collapse(fires$season,
+                             Winter = c("01", "02", "03"),
+                             Spring = c("04", "05", "06"),
+                             Summer = c("07", "08", "09"),
+                             Fall = c("10", "11", "12"))
+
+# Extract the time from the POSIXct object, convert it to a factor and collapse the factor into seasons
+fires$time <- format(fires$AlarmDateTimeAmericaNY, "%H")
+fires$time <- as.factor(fires$time)
+fires$time <- fct_collapse(fires$time,
+                           Morning = c("06", "07", "08", "09", "10", "11"),
+                           Afternoon = c("12", "13", "14", "15", "16", "17"),
+                           Evening = c("18", "19", "20", "21", "22", "23"),
+                           Night = c("00", "01", "02", "03", "04", "05"))
+
+# Drop the original datetime variable since it's no longer neccesary
+fires <- fires[, -1]
 ```
