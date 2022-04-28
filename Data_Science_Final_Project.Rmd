@@ -1,0 +1,45 @@
+---
+title: "Data Science Final Project"
+author: "Vibha, Anish, Salem"
+date: "4/28/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#loading in the data and packages needed
+```{r}
+library(tidyverse)
+fires = read.csv("Historical_Fire_Data.csv")
+```
+
+#casting the empties as NAs
+```{r}
+str(fires)
+fires[fires ==" "] <- NA
+```
+
+#getting rid of unneeded columns
+```{r}
+fires = select(fires, -c(1,2,3,4,16,17,18,19,20))
+```
+
+#turning necessary columns into factors
+```{r}
+str(fires)
+fires[,c(2,3,4,5,7,11,12)] <- lapply(fires[,c(2,3,4,5,7,11,12)], as.factor)
+
+```
+
+#Converting datetime string into season and time of day
+```{r}
+# Get a POSIXct datetime object from the string in the dataset
+fires$date <- as.POSIXct(fires$AlarmDateTimeAmericaNY , format="%Y/%m/%d %H:%M:%S+00", tz="EST")
+
+# Extract the date from the POSIXct object, convert it to a fac
+fires$month <- format(as.Date(fires$date), "%m")
+fires$month <- as.factor(fires$month)
+```
