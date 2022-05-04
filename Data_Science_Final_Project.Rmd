@@ -19,6 +19,9 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+## Data Prep
+
 ### loading in the data and packages needed
 ```{r}
 library(tidyverse)
@@ -430,13 +433,6 @@ fires_RF$call
 
 fires_RF$rsq
 
-workers_RF_acc = sum(workers_RF$confusion[row(workers_RF$confusion) == 
-                    col(workers_RF$confusion)]) /sum(workers_RF$confusion)
-# over 53% of people making >50k are misclassified
-
-workers_RF_acc
-# Accuracy was 0.84ish
-
 View(as.data.frame(importance(fires_RF, type = 2, scale = TRUE)))
 View(as.data.frame(fires_RF$importance))
 # Marital status, relationship and occupation were the variables that had the largest mean decrease in accuracy.
@@ -446,18 +442,18 @@ View(as.data.frame(fires_RF$importance))
 # Race, sex and native country were still among the least important variables in all cases.
 
 # predict on the tune set
-workers_predict_tune = predict(fires_RF,
+fires_predict_tune = predict(fires_RF,
                           tune,
                           type = "response",
                           predict.all = TRUE)
 
 # confusion matrices of the two models
-workers_RF$confusion
-workers_RF_improved$confusion
+#workers_RF$confusion
+#orkers_RF_improved$confusion
 
-library(caret)
-confusionMatrix(as.factor(workers_predict_tune$aggregate),as.factor(tune$salary), 
-                dnn=c("Prediction", "Actual"), mode = "everything")
+#library(caret)
+#confusionMatrix(as.factor(fires_predict_tune$aggregate),as.factor(tune$IncidentDurationMinutes), 
+#                dnn=c("Prediction", "Actual"), mode = "everything")
 # ~84% accuracy
 # Sensitivity : 0.4761         
 # Specificity : 0.9579
