@@ -1,17 +1,14 @@
 ---
-title: "Data Science Final Project"
+title: "Practice of Data Science Final Project: Charlottesville Fire Incident Duration"
 knit: (function(input_file, encoding) {
     out_dir <- 'docs';
     rmarkdown::render(input_file,
       encoding=encoding,
       output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 author: "Vibha Vijay, Anish Mandalika, Salem Keleta"
-date: "4/28/2022"
+date: "5/5/2022"
 output:
-  prettydoc::html_pretty:
-    theme: cayman
-    toc: true
-    highlight: github
+  rmdformats::readthedown
 editor_options: 
   chunk_output_type: console
 ---
@@ -20,10 +17,32 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+## Question and Background Information
+
+### Question
+
+> Based on location, origin, time and other data about a fire, can our model predict the amount of time it will take the Charlottesville,
+> VA firefighters to put the fire out?
+
+This question is important to ask because a model can help fire departments predict how long a fire will take to put out at any given
+address, time, or origin of the fire. Ideally, if a department gets a call about a fire, and they know the address, time, origin of the
+fire, etc, they can predict within a reasonable range how long it will take for the firefighters and resources to be back to the station
+to be ready to go fight the next fire. Helping fire departments understand how many resources they need and how they can spread out these
+resources can assist in making fire response more equitable regardless of area. 
+
+### Background Information
+This data was collected by the City of Charlottesville, VA, originally published in August of 2020 and later updated in September 2020.
+The fire incidents reported occurred from 04/2002-9/2019. We need to consider a few fire response variables as explained in
+[a 2013 study thattalks about Data Model Development for Fire Related Extreme Events](https://www.jstor.org/stable/43825940).
+
+![](./paper_table.png)
+
+```{r include=FALSE}
 ## Data Prep
 
 ### loading in the data and packages needed
-```{r}
+
 library(tidyverse)
 library(caret)
 library(rpart.plot)
@@ -32,26 +51,30 @@ library(randomForest)
 fires = read.csv("Historical_Fire_Data.csv")
 ```
 
+```{r include=FALSE}
 ### casting the empties as NAs
-```{r}
+
 str(fires)
 fires[fires ==" "] <- NA
 ```
 
+```{r include=FALSE}
 ### getting rid of unneeded columns
-```{r}
+
 fires = select(fires, -c(1,2,3,4,16,17,18,19,20))
 ```
 
+```{r include=FALSE}
 ### turning necessary columns into factors
-```{r}
+
 str(fires)
 fires[,c(2,3,4,5,7,11,12)] <- lapply(fires[,c(2,3,4,5,7,11,12)], as.factor)
 
 ```
 
+```{r include=FALSE}
 ### Converting datetime string into season and time of day
-```{r}
+
 # Get a POSIXct datetime object from the string in the dataset
 fires$AlarmDateTimeAmericaNY <- as.POSIXct(fires$AlarmDateTimeAmericaNY , format="%Y/%m/%d %H:%M:%S+00", tz="EST")
 
@@ -73,20 +96,21 @@ fires$time <- fct_collapse(fires$time,
                            Evening = c("18", "19", "20", "21", "22", "23"),
                            Night = c("00", "01", "02", "03", "04", "05"))
 
-# Drop the original datetime variable since it's no longer neccesary
+# Drop the original datetime variable since it's no longer necessary
 fires <- fires[, -1]
 ```
 
+```{r include=FALSE}
 ### Missing data
-```{r}
 mice::md.pattern(fires, rotate.names=TRUE)
 
 # Fill in all NAs in factors with the string "Unknown"
 fires[,c(1,2,3,4,6,10)] <- lapply(fires[,c(1,2,3,4,6,10)], addNA)
 ```
 
+```{r include=FALSE}
 ### Collapsing more factor levels
-```{r}
+
 fires$FireAreaOfOrigin <- fct_collapse(fires$FireAreaOfOrigin,
                                        `Small enclosed area` = c("Attic: vacant, crawl space above top story, cupola",
                                                                "Bathroom, checkroom, lavatory, locker room",
@@ -240,7 +264,7 @@ fires$PropertyUse <- fct_collapse(fires$PropertyUse,
                                                     "Eating, drinking places","Eating, drinking places, other",
                                                     "Food and beverage sales, grocery store",
                                                     "General retail, other","Hotel/motel, commercial","Household goods, sales, repairs","Laundry, dry cleaning","Live performance theater","Manufacturing, processing","Mercantile, business, other","Motor vehicle or boat sales, services, repair","Personal service, including barber & beauty shops","Professional supplies, services","Recreational, hobby, home repair sales, pet store","Restaurant or cafeteria","Service station, gas station","Specialty shop","Textile, wearing apparel sales"), 
-                           Public_Facility = c("Adult education center, college classroom ","Assembly, other","Athletic/health club","Courthouse","Dump, sanitary landfill","Educational, other","Electrical distribution","Elementary school, including kindergarten","Fixed use recreation places, other","Fixed-use recreation places, other","Health care, detention, & correction, other","High school/junior high school/middle school","Playground","Preschool","Public or government, other","Reformatory, juvenile detention center","Schools, non-adult","Stadium, arena","Steam or heat generating plant","Storage, other","Water utility"),
+                           Public_Facility = c("Adult education center, college classroom ","Adult education center, college classroom","Assembly, other","Athletic/health club","Courthouse","Dump, sanitary landfill","Educational, other","Electrical distribution","Elementary school, including kindergarten","Fixed use recreation places, other","Fixed-use recreation places, other","Health care, detention, & correction, other","High school/junior high school/middle school","Playground","Preschool","Public or government, other","Reformatory, juvenile detention center","Schools, non-adult","Stadium, arena","Steam or heat generating plant","Storage, other","Water utility"),
                            Residence = c("1 or 2 family dwelling",
                                              "24-hour care Nursing homes, 4 or more persons","Barracks, dormitory", "Boarding/rooming house, residential hotels","Day care, in residence, licensed","Dormitory type residence, other","Dormitory-type residence, other","Multifamily dwelling","Parking garage, (detached residential garage)","Parking garage, general vehicle","Residential board and care","Residential or self storage units","Residential street, road or residential driveway","Residential, other","Sorority house, fraternity house"),
                            Outdoor = c("Beach",
@@ -260,16 +284,61 @@ fires$ItemFirstIgnited <- fct_collapse(fires$ItemFirstIgnited,
                            Other_Manmade_Material = c("Adhesive","Atomized liquid, vaporized liquid, aerosol.","Book","Box, carton, bag, basket, barrel","Decoration","Exterior roof covering or finish","Exterior sidewall covering, surface, finish","Exterior trim, including doors","Exterior wall covering or finish","Film, residue, including paint & resin","Filter, including evaporative cooler pads","Furniture, utensils, other","General materials, other","Insulation within structural area","Interior ceiling cover or finish","Interior ceiling covering or finish","Interior wall covering excluding drapes, etc.","Item first ignited, other","Item, Other","Liquids, piping, filters, other","Multiple items first ignited","Oily rags","Packing, wrapping material","Pipe, duct, conduit, hose covering","Pyrotechnics, explosives","Rubbish, trash, or waste","Rubbish, trash, waste","Storage supplies, other","Tire","Undetermined",NA))
 ```
 
+```{r include=FALSE}
 ### re-run missing data analysis
-```{r}
+
 mice::md.pattern(fires, rotate.names=TRUE)
 
 # Keep only complete cases
 fires <- fires[complete.cases(fires), ]
 ```
 
-### splitting into train, tune, test
+## Exploratory Data Analysis
+
+We first looked at the distribution of our target variable:
+
 ```{r}
+d <- density(fires$IncidentDurationMinutes)
+plot(d, main="Duration of fire incident")
+polygon(d, col="darkmagenta", border="darkmagenta")
+```
+
+```{r}
+d <- density(fires$IncidentDurationMinutes)
+plot(d, main="Duration of fire incident",
+     log="x",
+     xlab="Minutes")
+```
+
+We then looked at a number of variables within our dataset (after data prep) that we thought might be useful for predicting incident length:
+
+```{r}
+barplot(table(fires$FireType),
+        main="Type of Fire",
+        ylab="Number of Incidents",
+        col="darkmagenta",
+        las=2)
+```
+
+```{r}
+barplot(table(fires$PropertyUse),
+        main="Property Use",
+        ylab="Number of Incidents",
+        col="darkmagenta",
+        las=2)
+```
+
+![](./firedatagraph1.png)
+
+## Methods
+
+We are interested in creating a regression model, and using NRMSE and R^2 as our primary evaluation metrics. Our aim is to create a model that predicts incident duration with reasonable accuracy, specifically, we want our model to be less than 20 minutes off after fine-tuning the model and adjusting its hyperparameter.
+
+The maxdepth analysis and decision tree from our initial model are as follows:
+
+```{r include=FALSE}
+### splitting into train, tune, test
+
 set.seed(3001)
 part_index_1 <- caret::createDataPartition(fires$IncidentDurationMinutes,
                                            times=1,
@@ -296,10 +365,11 @@ dim(test)
 dim(tune)
 ```
 
+```{r include=FALSE}
 ## Decision Tree model
 
 ### Creating and training the model
-```{r}
+
 features <- train[, -5] # Remove incident duration since it's the target variable
 
 target <- train$IncidentDurationMinutes
@@ -321,31 +391,37 @@ duration_model_dt <- train(x=features,
                             metric="RMSE")
 ```
 
+```{r include=FALSE}
 ### Running and Evaluating the model
-```{r}
+
 duration_model_dt
-
-plot(duration_model_dt)
-
-varImp(duration_model_dt)
-
-rpart.plot(duration_model_dt$finalModel, type=5,extra=101)
-
-grade_pred_reg <- predict(duration_model_dt, tune)
-
-postResample(pred = grade_pred_reg, obs = tune$IncidentDurationMinutes)
-
-range(tune$IncidentDurationMinutes)
-555.3 - 6.4
-
-# Get the nrmse
-duration_dt_rmse <- postResample(pred = grade_pred_reg, obs = tune$IncidentDurationMinutes)[1]
-
-(duration_dt_rmse / (555.3-6.4))
 ```
 
-### Adjusting the hyperparameter
 ```{r}
+plot(duration_model_dt)
+```
+
+A maximum depth of 2 clearly had the lowest RMSE, so it was chosen.
+
+```{r}
+varImp(duration_model_dt)
+```
+
+Property Loss was by far the most important variable in the dataset, followed by Fire Type and Area of Origin.
+
+```{r}
+rpart.plot(duration_model_dt$finalModel, type=5,extra=101)
+```
+
+This confirms that Property Loss was the most important variable.
+
+___
+
+The maxdepth analysis and decision tree from our tuned model are as follows:
+
+```{r include=FALSE}
+### Adjusting the hyperparameter
+
 tree.grid <- expand.grid(maxdepth=c(3:20))
 
 # training the model with the adjusted hyperparameter
@@ -358,104 +434,135 @@ duration_model_dt_1 <- train(x=features,
                             metric="RMSE")
 ```
 
+```{r include=FALSE}
 ### Running and Evaluating the new model
-```{r}
+
 duration_model_dt_1
+```
 
+```{r}
 plot(duration_model_dt_1)
+```
 
+This time, a maximum depth of 5 was chosen.
+
+```{r}
 varImp(duration_model_dt_1)
+```
 
+The variables of importance were largely unchanged.
+
+```{r}
 rpart.plot(duration_model_dt_1$finalModel, type=5,extra=101)
+```
 
-grade_pred_reg <- predict(duration_model_dt_1, tune)
+The tree makes use of more variables now.
 
+
+
+
+
+
+
+## Evaluation
+
+### Original Model
+
+```{r include=FALSE}
+
+grade_pred_reg <- predict(duration_model_dt, tune)
+```
+
+```{r}
 postResample(pred = grade_pred_reg, obs = tune$IncidentDurationMinutes)
+```
 
+```{r include=FALSE}
+range(tune$IncidentDurationMinutes)
+555.3 - 6.4
+
+# Get the nrmse
+duration_dt_rmse <- postResample(pred = grade_pred_reg, obs = tune$IncidentDurationMinutes)[1]
+```
+
+NRMSE:
+
+```{r}
+(duration_dt_rmse / (mean(tune$IncidentDurationMinutes)))
+```
+
+### Tuned model
+
+```{r include=FALSE}
+grade_pred_reg <- predict(duration_model_dt_1, tune)
+```
+
+```{r}
+postResample(pred = grade_pred_reg, obs = tune$IncidentDurationMinutes)
+```
+
+```{r include=FALSE}
 range(tune$IncidentDurationMinutes)
 555.3 - 6.4
 
 # Get the nrmse
 duration_dt_rmse_1 <- postResample(pred = grade_pred_reg, obs = tune$IncidentDurationMinutes)[1]
-
-(duration_dt_rmse_1 / (555.3-6.4))
 ```
 
-## Random Forest model - IGNORE EVERYTHING BELOW THIS
-
-### Calculating the initial mtry level 
 ```{r}
-mytry_tune <- function(x){
-  xx <- dim(x)[2]-1
-  sqrt(xx)
-}
-
-
-mytry_tune(fires)
-# 3.87 = ~4
-
+(duration_dt_rmse_1 / (mean(tune$IncidentDurationMinutes)))
 ```
 
-## Run the initial RF model with 1000 trees 
+Our original model had an NRMSE of 113.4% and r^2 was 0.41. Neither metric changed significantly after fine-tuning our model
+and adjusting the hyperparameter (max depth).
+
+### Evaluating with the Tuned model on the Test set
+
+```{r include=FALSE}
+grade_pred_reg <- predict(duration_model_dt_1, test)
+```
+
 ```{r}
-
-fires_RF = randomForest(IncidentDurationMinutes~.,          #<- Formula: response variable ~ predictors.
-                            #   The period means 'use all other variables in the data'.
-                            train,     #<- A data frame with the variables to be used.
-                            #y = NULL,           #<- A response vector. This is unnecessary because we're specifying a response formula.
-                            #subset = NULL,      #<- This is unnecessary because we're using all the rows in the training data set.
-                            #xtest = NULL,       #<- This is already defined in the formula by the ".".
-                            #ytest = NULL,       #<- This is already defined in the formula by "PREGNANT".
-                            ntree = 1000,        #<- Number of trees to grow. This should not be set to too small a number, to ensure that every input row gets classified at least a few times.
-                            mtry = 5,            #<- Number of variables randomly sampled as candidates at each split. Default number for classification is sqrt(# of variables). Default number for regression is (# of variables / 3).
-                            replace = TRUE,      #<- Should sampled data points be replaced.
-                            #classwt = NULL,     #<- Priors of the classes. Use this if you want to specify what proportion of the data SHOULD be in each class. This is relevant if your sample data is not completely representative of the actual population 
-                            #strata = NULL,      #<- Not necessary for our purpose here.
-                            sampsize = 100,      #<- Size of sample to draw each time.
-                            nodesize = 5,        #<- Minimum numbers of data points in terminal nodes.
-                            #maxnodes = NULL,    #<- Limits the number of maximum splits. 
-                            importance = TRUE,   #<- Should importance of predictors be assessed?
-                            #localImp = FALSE,   #<- Should casewise importance measure be computed? (Setting this to TRUE will override importance.)
-                            proximity = FALSE,    #<- Should a proximity measure between rows be calculated?
-                            norm.votes = TRUE,   #<- If TRUE (default), the final result of votes are expressed as fractions. If FALSE, raw vote counts are returned (useful for combining results from different runs).
-                            do.trace = TRUE,     #<- If set to TRUE, give a more verbose output as randomForest is run.
-                            keep.forest = TRUE,  #<- If set to FALSE, the forest will not be retained in the output object. If xtest is given, defaults to FALSE.
-                            keep.inbag = TRUE)   #<- Should an n by ntree matrix be returned that keeps track of which samples are in-bag in which trees? 
-
+postResample(pred = grade_pred_reg, obs = test$IncidentDurationMinutes)
 ```
 
-## Take a look at the variable importance measures, are they the same as the DT version or not? 
+```{r include=FALSE}
+range(test$IncidentDurationMinutes)
+555.3 - 6.4
+
+# Get the nrmse
+duration_dt_rmse_1 <- postResample(pred = grade_pred_reg, obs = test$IncidentDurationMinutes)[1]
+```
+
 ```{r}
-
-fires_RF
-
-fires_RF$call
-
-fires_RF$rsq
-
-View(as.data.frame(importance(fires_RF, type = 2, scale = TRUE)))
-View(as.data.frame(fires_RF$importance))
-# Marital status, relationship and occupation were the variables that had the largest mean decrease in accuracy.
-# Occupation, Education and relationship led to the biggest mean decreases in Gini index.
-# The most important variables for the decision tree were Capital Gain, Education and Occupation.
-# It is interesting to note that Capital Gain, which was the most important variable in the decision tree by far, does not factor in the top 3 for either metric for the RF.
-# Race, sex and native country were still among the least important variables in all cases.
-
-# predict on the tune set
-fires_predict_tune = predict(fires_RF,
-                          tune,
-                          type = "response",
-                          predict.all = TRUE)
-
-# confusion matrices of the two models
-#workers_RF$confusion
-#orkers_RF_improved$confusion
-
-#library(caret)
-#confusionMatrix(as.factor(fires_predict_tune$aggregate),as.factor(tune$IncidentDurationMinutes), 
-#                dnn=c("Prediction", "Actual"), mode = "everything")
-# ~84% accuracy
-# Sensitivity : 0.4761         
-# Specificity : 0.9579
-
+(duration_dt_rmse_1 / (mean(test$IncidentDurationMinutes)))
 ```
+
+Our final predictions had an NRMSE of 176.2% and an r^2 value of 0.35 .
+
+This means that, on average, the error of the predicted duration was 176.2% of the average incident duration, and so
+the average prediction was almost 103 minutes off. This is unacceptable, because having predictions that are almost two hours
+off on average would cause chaos if used in a real fire station because it would result in frequent over- and understaffing.  
+
+## Fairness Assessment
+
+We do not necessarily have any protected classes, but it could be could to consider that our dataset did not contain any fires
+that 911 was not called for. It is worth noting that the results of our model will only be applicable to the Charlottesville area.
+If someone wanted to use our model in another location, they would need to train it using local data at that location.
+
+## Conclusions
+
+After trying around four model types within our skillset, we landed on a Decision Tree model, which gave us the best results with an
+average error of 103 minutes and R Squared of 0.35 . With the limitations of our model and it’s current level of capability to predict
+a future incident’s duration time, we cannot confidently rely on this model to help a fire department’s efficiency. Predicting a duration
+of time with over an hour of error is not close to adequate for a workable system for the Charlottesville Fire Department when lives are
+on the line. However, our ideology can be applied to larger datasets, with presumably better results.
+
+## Limitations and Future Work
+
+One of the limitations is our limited sample size. The dataset had a little over 2000 samples which can be hard to draw solid
+conclusions from as the model has a limited number of previous values to use in order to help make future predictions. Our data also contained
+at least one NA per every row, and that really limited the possibilities. Our dataset may also have lacked certain features that would
+have been helpful in predicting incident duration. 
+
+
